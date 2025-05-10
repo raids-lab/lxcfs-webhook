@@ -1,0 +1,209 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lxcfs-remount-script
+  namespace: lxcfs
+data:
+  container_remount_lxcfs.sh: |
+    #!/bin/bash +x
+
+    LXCFS="/var/lib/lxc/lxcfs"
+
+    containers=$(crictl ps | grep -v pause | grep -v calico | grep -v cilium | awk '{print $1}' | grep -v CONTAINER)
+    for container in $containers; do
+        # Get the container's mounts
+        mounts=$(crictl inspect -o go-template --template='{{range .info.config.mounts}}{{.container_path}} -> {{.host_path}}{{println}}{{end}}' $container | grep "$LXCFS/")
+        
+        echo "Mounts for container $container:"
+        echo "$mounts"
+        
+        # Check if the container has the LXCFS mount
+        count=$(echo "$mounts" | grep  "$LXCFS/" | wc -l)
+        if [ "$count" != "0" ]; then
+            echo "remount $container"
+            PID=$(crictl inspect --output go-template --template '{{- .info.pid -}}' $container)
+            # mount /proc
+            for file in meminfo cpuinfo loadavg stat diskstats swaps uptime; do
+                echo nsenter --target $PID --mount -- mount -B "$LXCFS/proc/$file" "/proc/$file"
+                nsenter --target $PID --mount -- mount -B "$LXCFS/proc/$file" "/proc/$file"
+            done
+
+            # mount /sys
+            for file in online; do
+                echo nsenter --target $PID --mount -- mount -B "$LXCFS/sys/devices/system/cpu/$file" "/sys/devices/system/cpu/$file"
+                nsenter --target $PID --mount -- mount -B "$LXCFS/sys/devices/system/cpu/$file" "/sys/devices/system/cpu/$file"
+            done
+        else
+            echo "No LXCFS mount found for container $container"
+        fi
+    done
+    exit 0
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lxcfs-crictl-config
+  namespace: lxcfs
+data:
+  crictl.yaml: |
+    runtime-endpoint: unix:///var/run/containerd/containerd.sock
+    image-endpoint: unix:///var/run/containerd/containerd.sock
+    timeout: 10
+    debug: false
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lxcfs-start-script
+  namespace: lxcfs
+data:
+  start.sh: |
+    #!/bin/bash
+
+    set -e  # Exit immediately if a command exits with a non-zero status.
+
+    # Cleanup
+    nsenter -m/proc/1/ns/mnt fusermount -u /var/lib/lxc/lxcfs 2> /dev/null || true
+    nsenter -m/proc/1/ns/mnt [ -L /etc/mtab ] || \
+            sed -i "/^lxcfs \/var\/lib\/lxc\/lxcfs fuse.lxcfs/d" /etc/mtab
+
+    # Prepare
+    mkdir -p /usr/local/lib/lxcfs /var/lib/lxc/lxcfs
+
+    # Update lxcfs
+    cp -f /lxcfs/lxcfs /usr/local/bin/lxcfs
+    cp -f /lxcfs/liblxcfs.so /lib/x86_64-linux-gnu/liblxcfs.so
+    cp -f /lxcfs/libfuse.so.2.9.9 /lib/x86_64-linux-gnu/libfuse.so.2.9.9
+    cp -f /lxcfs/libulockmgr.so.1.0.1 /lib/x86_64-linux-gnu/libulockmgr.so.1.0.1
+
+    # Remove old links
+    rm -f /lib/x86_64-linux-gnu/libfuse.so.2 /lib/x86_64-linux-gnu/libulockmgr.so.1 /lib/x86_64-linux-gnu/libulockmgr.so
+
+    # Create new links
+    ln -s /lib/x86_64-linux-gnu/libfuse.so.2.9.9 /lib/x86_64-linux-gnu/libfuse.so.2
+    ln -s /lib/x86_64-linux-gnu/libulockmgr.so.1.0.1 /lib/x86_64-linux-gnu/libulockmgr.so.1
+    ln -s /lib/x86_64-linux-gnu/libulockmgr.so.1.0.1 /lib/x86_64-linux-gnu/libulockmgr.so
+
+    # Update library cache
+    nsenter -m/proc/1/ns/mnt ldconfig
+
+    # Mount
+    exec nsenter -m/proc/1/ns/mnt /usr/local/bin/lxcfs /var/lib/lxc/lxcfs/ --enable-cfs -l -o nonempty
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: lxcfs
+  namespace: lxcfs
+  labels:
+    app: lxcfs
+spec:
+  selector:
+    matchLabels:
+      app: lxcfs
+  template:
+    metadata:
+      labels:
+        app: lxcfs
+    spec:
+      hostPID: true
+      tolerations:
+        - key: node-role.kubernetes.io/master
+          effect: NoSchedule
+      containers:
+        - name: lxcfs
+          image: gpu-harbor.act.buaa.edu.cn/user-liyilong/ubuntu:05061356-8213
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - bash
+                  - -c
+                  - /opt/container_remount_lxcfs.sh > /opt/log/lxcfs.log 2>&1
+            preStop:
+              exec:
+                command:
+                  - bash
+                  - -c
+                  - nsenter -m/proc/1/ns/mnt fusermount -u /var/lib/lxc/lxcfs 2> /dev/null || true
+          command:
+            - sh
+            - -c
+            - /start.sh
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: cgroup
+              mountPath: /sys/fs/cgroup
+            - name: lxcfs
+              mountPath: /var/lib/lxc/lxcfs
+              mountPropagation: Bidirectional
+            - name: usr-local
+              mountPath: /usr/local
+            - name: usr-lib64
+              mountPath: /lib/x86_64-linux-gnu
+            - mountPath: /opt/log/
+              name: datalog
+              subPathExpr: $(NAMESPACE)/$(POD_NAME)
+            - name: remount-script
+              mountPath: /opt/container_remount_lxcfs.sh
+              subPath: container_remount_lxcfs.sh
+            - name: crictl-config
+              mountPath: /etc/crictl.yaml
+              subPath: crictl.yaml
+            - name: cri-socket
+              mountPath: /var/run/containerd/containerd.sock
+            - name: crictl-bin
+              mountPath: /usr/bin/crictl
+            - name: start-script
+              mountPath: /start.sh
+              subPath: start.sh
+      volumes:
+        - name: cgroup
+          hostPath:
+            path: /sys/fs/cgroup
+        - name: usr-local
+          hostPath:
+            path: /usr/local
+        - name: usr-lib64
+          hostPath:
+            path: /lib/x86_64-linux-gnu
+        - name: lxcfs
+          hostPath:
+            path: /var/lib/lxc/lxcfs
+            type: DirectoryOrCreate
+        - name: datalog
+          hostPath:
+            path: /tmp/lxcfs
+            type: DirectoryOrCreate
+        - name: remount-script
+          configMap:
+            name: lxcfs-remount-script
+            defaultMode: 0777
+        - name: crictl-config
+          configMap:
+            name: lxcfs-crictl-config
+        - name: cri-socket
+          hostPath:
+            path: /var/run/containerd/containerd.sock
+            type: Socket
+        - name: crictl-bin
+          hostPath:
+            path: /usr/bin/crictl
+            type: File
+        - name: start-script
+          configMap:
+            name: lxcfs-start-script
+            defaultMode: 0777

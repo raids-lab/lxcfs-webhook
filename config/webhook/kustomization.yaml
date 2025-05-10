@@ -1,6 +1,10 @@
 resources:
-- manifests.yaml
-- service.yaml
+  - manifests.yaml
+  - service.yaml
 
 configurations:
-- kustomizeconfig.yaml
+  - kustomizeconfig.yaml
+
+patches:
+  - path: mutating-webhook-namespace-selector.yaml
+  - path: validating-webhook-namespace-selector.yaml

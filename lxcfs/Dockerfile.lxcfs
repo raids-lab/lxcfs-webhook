@@ -1,0 +1,57 @@
+# LXCFS Builder Image
+# Builds LXCFS from source on Ubuntu 22.04
+
+FROM docker.io/ubuntu:22.04 AS build
+
+# Environment configuration
+ENV DEBIAN_FRONTEND=noninteractive \
+    LXCFS_VERSION=v6.0.4
+
+# Install build dependencies
+RUN apt-get update && \
+    apt-get --purge remove -y lxcfs && \
+    apt-get install -y --no-install-recommends \
+    build-essential \
+    cmake \
+    fuse3 \
+    git \
+    help2man \
+    libcurl4-openssl-dev \
+    libfuse-dev \
+    libtool \
+    libxml2-dev \
+    m4 \
+    meson \
+    mime-support \
+    pkg-config \
+    python3-pip \
+    systemd \
+    wget \
+    autotools-dev \
+    automake && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+RUN pip3 install --no-cache-dir -U jinja2 \
+    -i https://mirrors.aliyun.com/pypi/simple/
+
+# Download and build LXCFS from source
+RUN wget https://linuxcontainers.org/downloads/lxcfs/lxcfs-${LXCFS_VERSION}.tar.gz && \
+    mkdir /lxcfs && \
+    tar xzvf lxcfs-${LXCFS_VERSION}.tar.gz -C /lxcfs --strip-components=1 && \
+    cd /lxcfs && \
+    make && \
+    make install && \
+    rm -f /lxcfs-${LXCFS_VERSION}.tar.gz
+
+FROM docker.io/ubuntu:22.04
+
+STOPSIGNAL SIGINT
+
+COPY --from=build /lxcfs/build/lxcfs /lxcfs/lxcfs
+COPY --from=build /lxcfs/build/liblxcfs.so /lxcfs/liblxcfs.so
+COPY --from=build /lib/x86_64-linux-gnu/libfuse.so.2.9.9 /lxcfs/libfuse.so.2.9.9
+COPY --from=build /lib/x86_64-linux-gnu/libulockmgr.so.1.0.1 /lxcfs/libulockmgr.so.1.0.1
+
+# Must be overridden by the kubernetes command
+CMD ["/bin/false"]

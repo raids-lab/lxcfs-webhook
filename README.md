@@ -1,5 +1,8 @@
 # lxcfs-webhook
-// TODO(user): Add simple overview of use/purpose
+
+LXCFS Webhook is a Kubernetes admission controller that provides
+a way to manage and enforce LXCFS configurations for containers
+running in a Kubernetes cluster.
 
 ## Description
 // TODO(user): An in-depth paragraph about your project and overview of use

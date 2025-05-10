@@ -6,11 +6,18 @@ import (
 	"k8s.io/utils/ptr"
 )
 
-var (
+const (
 	// AdmissionWebhook
 	AdmissionWebhookAnnotationMutateKey = "lxcfs-admission-webhook.raids-lab.github.io/mutate"
 	AdmissionWebhookAnnotationStatusKey = "lxcfs-admission-webhook.raids-lab.github.io/status"
 
+	// AdmissionWebhook Values
+	MutateValueTrue    = "true"
+	MutateValueFalse   = "false"
+	StatusValueMutated = "mutated"
+)
+
+var (
 	// LXCFS VolumeMounts Template
 	// See https://github.com/lxc/lxcfs for more details.
 	VolumeMountsTemplate = []corev1.VolumeMount{
@@ -49,21 +56,21 @@ var (
 			MountPath: "/proc/slabinfo",
 			ReadOnly:  true,
 		},
-		{
-			Name:      "lxcfs-proc-pressure-io",
-			MountPath: "/proc/pressure/io",
-			ReadOnly:  true,
-		},
-		{
-			Name:      "lxcfs-proc-pressure-cpu",
-			MountPath: "/proc/pressure/cpu",
-			ReadOnly:  true,
-		},
-		{
-			Name:      "lxcfs-proc-pressure-memory",
-			MountPath: "/proc/pressure/memory",
-			ReadOnly:  true,
-		},
+		// {
+		// 	Name:      "lxcfs-proc-pressure-io",
+		// 	MountPath: "/proc/pressure/io",
+		// 	ReadOnly:  true,
+		// },
+		// {
+		// 	Name:      "lxcfs-proc-pressure-cpu",
+		// 	MountPath: "/proc/pressure/cpu",
+		// 	ReadOnly:  true,
+		// },
+		// {
+		// 	Name:      "lxcfs-proc-pressure-memory",
+		// 	MountPath: "/proc/pressure/memory",
+		// 	ReadOnly:  true,
+		// },
 		{
 			Name:      "lxcfs-sys-devices-system-cpu-online",
 			MountPath: "/sys/devices/system/cpu/online",
@@ -83,7 +90,7 @@ var (
 			Name: "lxcfs-proc-cpuinfo",
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/var/lib/lxcfs/proc/cpuinfo",
+					Path: "/var/lib/lxc/lxcfs/proc/cpuinfo",
 					Type: ptr.To(corev1.HostPathFile),
 				},
 			},
@@ -92,7 +99,7 @@ var (
 			Name: "lxcfs-proc-diskstats",
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/var/lib/lxcfs/proc/diskstats",
+					Path: "/var/lib/lxc/lxcfs/proc/diskstats",
 					Type: ptr.To(corev1.HostPathFile),
 				},
 			},
@@ -101,7 +108,7 @@ var (
 			Name: "lxcfs-proc-meminfo",
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/var/lib/lxcfs/proc/meminfo",
+					Path: "/var/lib/lxc/lxcfs/proc/meminfo",
 					Type: ptr.To(corev1.HostPathFile),
 				},
 			},
@@ -110,7 +117,7 @@ var (
 			Name: "lxcfs-proc-stat",
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/var/lib/lxcfs/proc/stat",
+					Path: "/var/lib/lxc/lxcfs/proc/stat",
 					Type: ptr.To(corev1.HostPathFile),
 				},
 			},
@@ -119,7 +126,7 @@ var (
 			Name: "lxcfs-proc-swaps",
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/var/lib/lxcfs/proc/swaps",
+					Path: "/var/lib/lxc/lxcfs/proc/swaps",
 					Type: ptr.To(corev1.HostPathFile),
 				},
 			},
@@ -128,7 +135,7 @@ var (
 			Name: "lxcfs-proc-uptime",
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/var/lib/lxcfs/proc/uptime",
+					Path: "/var/lib/lxc/lxcfs/proc/uptime",
 					Type: ptr.To(corev1.HostPathFile),
 				},
 			},
@@ -137,43 +144,43 @@ var (
 			Name: "lxcfs-proc-slabinfo",
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/var/lib/lxcfs/proc/slabinfo",
+					Path: "/var/lib/lxc/lxcfs/proc/slabinfo",
 					Type: ptr.To(corev1.HostPathFile),
 				},
 			},
 		},
-		{
-			Name: "lxcfs-proc-pressure-io",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/var/lib/lxcfs/proc/pressure/io",
-					Type: ptr.To(corev1.HostPathFile),
-				},
-			},
-		},
-		{
-			Name: "lxcfs-proc-pressure-cpu",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/var/lib/lxcfs/proc/pressure/cpu",
-					Type: ptr.To(corev1.HostPathFile),
-				},
-			},
-		},
-		{
-			Name: "lxcfs-proc-pressure-memory",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/var/lib/lxcfs/proc/pressure/memory",
-					Type: ptr.To(corev1.HostPathFile),
-				},
-			},
-		},
+		// {
+		// 	Name: "lxcfs-proc-pressure-io",
+		// 	VolumeSource: corev1.VolumeSource{
+		// 		HostPath: &corev1.HostPathVolumeSource{
+		// 			Path: "/var/lib/lxc/lxcfs/proc/pressure/io",
+		// 			Type: ptr.To(corev1.HostPathFile),
+		// 		},
+		// 	},
+		// },
+		// {
+		// 	Name: "lxcfs-proc-pressure-cpu",
+		// 	VolumeSource: corev1.VolumeSource{
+		// 		HostPath: &corev1.HostPathVolumeSource{
+		// 			Path: "/var/lib/lxc/lxcfs/proc/pressure/cpu",
+		// 			Type: ptr.To(corev1.HostPathFile),
+		// 		},
+		// 	},
+		// },
+		// {
+		// 	Name: "lxcfs-proc-pressure-memory",
+		// 	VolumeSource: corev1.VolumeSource{
+		// 		HostPath: &corev1.HostPathVolumeSource{
+		// 			Path: "/var/lib/lxc/lxcfs/proc/pressure/memory",
+		// 			Type: ptr.To(corev1.HostPathFile),
+		// 		},
+		// 	},
+		// },
 		{
 			Name: "lxcfs-sys-devices-system-cpu-online",
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/var/lib/lxcfs/sys/devices/system/cpu/online",
+					Path: "/var/lib/lxc/lxcfs/sys/devices/system/cpu/online",
 					Type: ptr.To(corev1.HostPathFile),
 				},
 			},
