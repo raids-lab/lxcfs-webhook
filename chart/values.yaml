@@ -1,10 +1,46 @@
+# [LXCFS]: LXCFS DaemonSet Configurations
+lxcfs:
+  daemonSet:
+    image:
+      repository: gpu-harbor.act.buaa.edu.cn/user-liyilong/ubuntu
+      tag: "05061356-8213"
+    resources:
+      limits:
+        cpu: 200m
+        memory: 256Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+    nodeSelector: {}
+    tolerations:
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+    affinity: {}
+    hostPID: true
+    securityContext:
+      privileged: true
+    lifecycle:
+      postStart:
+        enable: true
+        logPath: /tmp/lxcfs
+      preStop:
+        enable: true
+    volumeMounts:
+      extraVolumeMounts: []
+    volumes:
+      extraVolumes: []
+  configMaps:
+    crictlConfig:
+      enable: true
+      endpoint: unix:///var/run/containerd/containerd.sock
+
 # [MANAGER]: Manager Deployment Configurations
 controllerManager:
   replicas: 1
   container:
     image:
-      repository: controller
-      tag: latest
+      repository: crater-harbor.act.buaa.edu.cn/crater/lxcfs-webhook
+      tag: v0.1
     args:
       - "--leader-elect"
       - "--health-probe-bind-address=:8081"

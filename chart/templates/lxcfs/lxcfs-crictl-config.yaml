@@ -1,11 +1,15 @@
+{{- if .Values.lxcfs.daemonSet.lifecycle.postStart.enable }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: lxcfs-crictl-config
-  namespace: lxcfs
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
 data:
   crictl.yaml: |
-    runtime-endpoint: unix:///var/run/containerd/containerd.sock
-    image-endpoint: unix:///var/run/containerd/containerd.sock
+    runtime-endpoint: {{ .Values.lxcfs.configMaps.crictlConfig.endpoint }}
+    image-endpoint: {{ .Values.lxcfs.configMaps.crictlConfig.endpoint }}
     timeout: 10
     debug: false
+{{- end }}

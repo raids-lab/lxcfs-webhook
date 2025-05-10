@@ -1,9 +1,10 @@
-
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: lxcfs-start-script
-  namespace: lxcfs
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "chart.labels" . | nindent 4 }}
 data:
   start.sh: |
     #!/bin/bash

@@ -2,26 +2,37 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: lxcfs
-  namespace: lxcfs
+  namespace: {{ .Release.Namespace }}
   labels:
     app: lxcfs
+    {{- include "chart.labels" . | nindent 4 }}
 spec:
   selector:
     matchLabels:
       app: lxcfs
+      {{- include "chart.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
         app: lxcfs
+        {{- include "chart.labels" . | nindent 8 }}
     spec:
-      hostPID: true
+      hostPID: {{ .Values.lxcfs.daemonSet.hostPID }}
+      {{- with .Values.lxcfs.daemonSet.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.lxcfs.daemonSet.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.lxcfs.daemonSet.tolerations }}
       tolerations:
-        - key: node-role.kubernetes.io/master
-          effect: NoSchedule
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: lxcfs
-          image: gpu-harbor.act.buaa.edu.cn/user-liyilong/ubuntu:05061356-8213
-          imagePullPolicy: IfNotPresent
+          image: {{ .Values.lxcfs.daemonSet.image.repository }}:{{ .Values.lxcfs.daemonSet.image.tag }}
           env:
             - name: POD_NAME
               valueFrom:
@@ -34,24 +45,30 @@ spec:
                   apiVersion: v1
                   fieldPath: metadata.namespace
           lifecycle:
+            {{- if .Values.lxcfs.daemonSet.lifecycle.postStart.enable }}
             postStart:
               exec:
                 command:
                   - bash
                   - -c
                   - /opt/container_remount_lxcfs.sh > /opt/log/lxcfs.log 2>&1
+            {{- end }}
+            {{- if .Values.lxcfs.daemonSet.lifecycle.preStop.enable }}
             preStop:
               exec:
                 command:
                   - bash
                   - -c
                   - nsenter -m/proc/1/ns/mnt fusermount -u /var/lib/lxc/lxcfs 2> /dev/null || true
+            {{- end }}
           command:
             - sh
             - -c
             - /start.sh
           securityContext:
-            privileged: true
+            {{- toYaml .Values.lxcfs.daemonSet.securityContext | nindent 12 }}
+          resources:
+            {{- toYaml .Values.lxcfs.daemonSet.resources | nindent 12 }}
           volumeMounts:
             - name: cgroup
               mountPath: /sys/fs/cgroup
@@ -62,6 +79,7 @@ spec:
               mountPath: /usr/local
             - name: usr-lib64
               mountPath: /lib/x86_64-linux-gnu
+            {{- if .Values.lxcfs.daemonSet.lifecycle.postStart.enable }}
             - mountPath: /opt/log/
               name: datalog
               subPathExpr: $(NAMESPACE)/$(POD_NAME)
@@ -75,9 +93,13 @@ spec:
               mountPath: /var/run/containerd/containerd.sock
             - name: crictl-bin
               mountPath: /usr/bin/crictl
+            {{- end }}
             - name: start-script
               mountPath: /start.sh
               subPath: start.sh
+            {{- with .Values.lxcfs.daemonSet.volumeMounts.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
       volumes:
         - name: cgroup
           hostPath:
@@ -92,9 +114,10 @@ spec:
           hostPath:
             path: /var/lib/lxc/lxcfs
             type: DirectoryOrCreate
+        {{- if .Values.lxcfs.daemonSet.lifecycle.postStart.enable }}
         - name: datalog
           hostPath:
-            path: /tmp/lxcfs
+            path: {{ .Values.lxcfs.daemonSet.lifecycle.postStart.logPath }}
             type: DirectoryOrCreate
         - name: remount-script
           configMap:
@@ -111,7 +134,11 @@ spec:
           hostPath:
             path: /usr/bin/crictl
             type: File
+        {{- end }}
         - name: start-script
           configMap:
             name: lxcfs-start-script
             defaultMode: 0777
+        {{- with .Values.lxcfs.daemonSet.volumes.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}

@@ -1,9 +1,85 @@
-# lxcfs-webhook
+# LXCFS Admission Webhook Documentation
+
+## 1. Introduction
+
+The LXCFS Admission Webhook is a crucial component designed to streamline and automate the integration of LXCFS (Linux Containers Filesystem) within Kubernetes environments. 
+
+LXCFS provides a set of virtual filesystems that expose container-specific information, such as CPU and memory usage, in a format that is consistent with the Linux kernel's interfaces. 
+
+This webhook acts as an admission controller, intercepting Kubernetes API requests related to namespaces and pods, and applying necessary configurations to enable LXCFS for the relevant resources.
+
+## 2. Functionality
+
+### 2.1 Namespace-Level Configuration
+
+The webhook uses Kubernetes labels to determine which namespaces should have LXCFS enabled. When a namespace is labeled with `lxcfs-admission-webhook: enabled`, the webhook will automatically configure the namespace to use LXCFS.
+
+### 2.2 Pod-Level Exemption
+
+In some cases, there may be specific pods within a namespace that should not be affected by the LXCFS configuration. 
+
+To handle such scenarios, the webhook supports an annotation at the pod level. By adding the annotation `lxcfs-admission-webhook.raids-lab.github.io/mutate=false` to a pod, the webhook will skip any LXCFS-related modifications for that pod. This provides flexibility in managing LXCFS integration on a per-pod basis within a namespace.
+
+## 3. Installation
+
+Make sure you have the following prerequisites before proceeding with the installation:
+
+- A Kubernetes cluster
+- Helm installed
+- Cert Manager installed
+
+The LXCFS Admission Webhook can be installed using Helm, a popular package manager for Kubernetes. Follow the steps below to install the webhook:
+
+1. Navigate to the directory containing the Helm chart for the LXCFS Admission Webhook. In this case, the chart is located in the `./chart` directory.
+
+2. Execute the following Helm command to install or upgrade the webhook in the lxcfs namespace:
+
+```bash
+helm upgrade --install lxcfs-webhook ./chart -n lxcfs
+```
+
+This command will deploy all the necessary components of the webhook, including the webhook server, service, and related Kubernetes resources.
+
+## 4. Configuration
+
+### 4.1 Enabling LXCFS for a Namespace
+
+To enable LXCFS for a namespace, add the following label to the namespace:
+
+```bash
+kubectl label namespace <namespace-name> lxcfs-admission-webhook:enabled
+```
+
+Replace <namespace-name> with the actual name of the namespace you want to configure. After adding the label, the webhook will detect the change and automatically configure the namespace to use LXCFS.
+
+### 4.2 Exempting a Pod from LXCFS Configuration
+
+To exempt a pod from LXCFS-related modifications, add the following annotation to the pod's manifest:
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: <pod-name>
+  annotations:
+    lxcfs-admission-webhook.raids-lab.github.io/mutate: false
+spec:
+  containers:
+    - name: <container-name>
+      image: <image-name>
+```
+
+Replace <pod-name>, <container-name>, and <image-name> with the appropriate values for your pod. When creating or updating the pod, the webhook will respect this annotation and skip any LXCFS-related changes for the pod.
+
+## 5. Conclusion
+
+The LXCFS Admission Webhook simplifies the process of integrating LXCFS into Kubernetes environments by automating namespace and pod-level configurations. By following the installation and configuration steps outlined in this document, users can easily enable LXCFS for specific namespaces while having the flexibility to exempt individual pods as needed. Regular verification, testing, and troubleshooting will ensure the smooth operation of the webhook and the effective use of LXCFS within the Kubernetes cluster.
 
 LXCFS Webhook is a Kubernetes admission controller that provides
 a way to manage and enforce LXCFS configurations for containers
 running in a Kubernetes cluster.
 
+---
 ## Description
 // TODO(user): An in-depth paragraph about your project and overview of use
 
