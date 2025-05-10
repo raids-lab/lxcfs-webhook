@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lxcfs-crictl-config
+  namespace: lxcfs
+data:
+  crictl.yaml: |
+    runtime-endpoint: unix:///var/run/containerd/containerd.sock
+    image-endpoint: unix:///var/run/containerd/containerd.sock
+    timeout: 10
+    debug: false

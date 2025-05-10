@@ -5,6 +5,8 @@
 domain: raids-lab.github.io
 layout:
 - go.kubebuilder.io/v4
+plugins:
+  helm.kubebuilder.io/v1-alpha: {}
 projectName: lxcfs-webhook
 repo: github.com/raids-lab/lxcfs-webhook
 resources:

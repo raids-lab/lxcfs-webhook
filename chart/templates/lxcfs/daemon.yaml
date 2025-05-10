@@ -1,0 +1,117 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: lxcfs
+  namespace: lxcfs
+  labels:
+    app: lxcfs
+spec:
+  selector:
+    matchLabels:
+      app: lxcfs
+  template:
+    metadata:
+      labels:
+        app: lxcfs
+    spec:
+      hostPID: true
+      tolerations:
+        - key: node-role.kubernetes.io/master
+          effect: NoSchedule
+      containers:
+        - name: lxcfs
+          image: gpu-harbor.act.buaa.edu.cn/user-liyilong/ubuntu:05061356-8213
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - bash
+                  - -c
+                  - /opt/container_remount_lxcfs.sh > /opt/log/lxcfs.log 2>&1
+            preStop:
+              exec:
+                command:
+                  - bash
+                  - -c
+                  - nsenter -m/proc/1/ns/mnt fusermount -u /var/lib/lxc/lxcfs 2> /dev/null || true
+          command:
+            - sh
+            - -c
+            - /start.sh
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: cgroup
+              mountPath: /sys/fs/cgroup
+            - name: lxcfs
+              mountPath: /var/lib/lxc/lxcfs
+              mountPropagation: Bidirectional
+            - name: usr-local
+              mountPath: /usr/local
+            - name: usr-lib64
+              mountPath: /lib/x86_64-linux-gnu
+            - mountPath: /opt/log/
+              name: datalog
+              subPathExpr: $(NAMESPACE)/$(POD_NAME)
+            - name: remount-script
+              mountPath: /opt/container_remount_lxcfs.sh
+              subPath: container_remount_lxcfs.sh
+            - name: crictl-config
+              mountPath: /etc/crictl.yaml
+              subPath: crictl.yaml
+            - name: cri-socket
+              mountPath: /var/run/containerd/containerd.sock
+            - name: crictl-bin
+              mountPath: /usr/bin/crictl
+            - name: start-script
+              mountPath: /start.sh
+              subPath: start.sh
+      volumes:
+        - name: cgroup
+          hostPath:
+            path: /sys/fs/cgroup
+        - name: usr-local
+          hostPath:
+            path: /usr/local
+        - name: usr-lib64
+          hostPath:
+            path: /lib/x86_64-linux-gnu
+        - name: lxcfs
+          hostPath:
+            path: /var/lib/lxc/lxcfs
+            type: DirectoryOrCreate
+        - name: datalog
+          hostPath:
+            path: /tmp/lxcfs
+            type: DirectoryOrCreate
+        - name: remount-script
+          configMap:
+            name: lxcfs-remount-script
+            defaultMode: 0777
+        - name: crictl-config
+          configMap:
+            name: lxcfs-crictl-config
+        - name: cri-socket
+          hostPath:
+            path: /var/run/containerd/containerd.sock
+            type: Socket
+        - name: crictl-bin
+          hostPath:
+            path: /usr/bin/crictl
+            type: File
+        - name: start-script
+          configMap:
+            name: lxcfs-start-script
+            defaultMode: 0777

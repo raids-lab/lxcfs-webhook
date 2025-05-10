@@ -1,0 +1,39 @@
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lxcfs-start-script
+  namespace: lxcfs
+data:
+  start.sh: |
+    #!/bin/bash
+
+    set -e  # Exit immediately if a command exits with a non-zero status.
+
+    # Cleanup
+    nsenter -m/proc/1/ns/mnt fusermount -u /var/lib/lxc/lxcfs 2> /dev/null || true
+    nsenter -m/proc/1/ns/mnt [ -L /etc/mtab ] || \
+            sed -i "/^lxcfs \/var\/lib\/lxc\/lxcfs fuse.lxcfs/d" /etc/mtab
+
+    # Prepare
+    mkdir -p /usr/local/lib/lxcfs /var/lib/lxc/lxcfs
+
+    # Update lxcfs
+    cp -f /lxcfs/lxcfs /usr/local/bin/lxcfs
+    cp -f /lxcfs/liblxcfs.so /lib/x86_64-linux-gnu/liblxcfs.so
+    cp -f /lxcfs/libfuse.so.2.9.9 /lib/x86_64-linux-gnu/libfuse.so.2.9.9
+    cp -f /lxcfs/libulockmgr.so.1.0.1 /lib/x86_64-linux-gnu/libulockmgr.so.1.0.1
+
+    # Remove old links
+    rm -f /lib/x86_64-linux-gnu/libfuse.so.2 /lib/x86_64-linux-gnu/libulockmgr.so.1 /lib/x86_64-linux-gnu/libulockmgr.so
+
+    # Create new links
+    ln -s /lib/x86_64-linux-gnu/libfuse.so.2.9.9 /lib/x86_64-linux-gnu/libfuse.so.2
+    ln -s /lib/x86_64-linux-gnu/libulockmgr.so.1.0.1 /lib/x86_64-linux-gnu/libulockmgr.so.1
+    ln -s /lib/x86_64-linux-gnu/libulockmgr.so.1.0.1 /lib/x86_64-linux-gnu/libulockmgr.so
+
+    # Update library cache
+    nsenter -m/proc/1/ns/mnt ldconfig
+
+    # Mount
+    exec nsenter -m/proc/1/ns/mnt /usr/local/bin/lxcfs /var/lib/lxc/lxcfs/ --enable-cfs -l -o nonempty
