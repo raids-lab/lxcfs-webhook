@@ -30,12 +30,12 @@ Make sure you have the following prerequisites before proceeding with the instal
 
 The LXCFS Admission Webhook can be installed using Helm, a popular package manager for Kubernetes. Follow the steps below to install the webhook:
 
-1. Navigate to the directory containing the Helm chart for the LXCFS Admission Webhook. In this case, the chart is located in the `./chart` directory.
+1. Navigate to the directory containing the Helm chart for the LXCFS Admission Webhook. In this case, the chart is located in the `./dist/chart` directory.
 
 2. Execute the following Helm command to install or upgrade the webhook in the lxcfs namespace:
 
 ```bash
-helm upgrade --install lxcfs-webhook ./chart -n lxcfs
+helm upgrade --install lxcfs-webhook ./dist/chart -n lxcfs
 ```
 
 This command will deploy all the necessary components of the webhook, including the webhook server, service, and related Kubernetes resources.
