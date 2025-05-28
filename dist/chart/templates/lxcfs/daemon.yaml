@@ -30,6 +30,23 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      initContainers:
+        - command:
+            - /bin/bash
+            - -c
+            - nsenter -m/proc/1/ns/mnt fusermount -u /var/lib/lxc/lxcfs 2> /dev/null ||
+              true
+          image: {{ .Values.lxcfs.daemonSet.image.repository }}:{{ .Values.lxcfs.daemonSet.image.tag }}
+          imagePullPolicy: IfNotPresent
+          name: cleanup-lxcfs-mount
+          resources: {}
+          securityContext:
+            privileged: true
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /var/lib/lxc
+              name: lxc-folder
       containers:
         - name: lxcfs
           image: {{ .Values.lxcfs.daemonSet.image.repository }}:{{ .Values.lxcfs.daemonSet.image.tag }}
@@ -114,6 +131,10 @@ spec:
           hostPath:
             path: /var/lib/lxc/lxcfs
             type: DirectoryOrCreate
+        - hostPath:
+            path: /var/lib/lxc
+            type: DirectoryOrCreate
+          name: lxc-folder
         {{- if .Values.lxcfs.daemonSet.lifecycle.postStart.enable }}
         - name: datalog
           hostPath:

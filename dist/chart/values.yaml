@@ -4,6 +4,8 @@ lxcfs:
     image:
       repository: docker.io/liyiloong/lxcfs
       tag: v6.0.4-ubuntu22.04
+      # repository: gpu-harbor.act.buaa.edu.cn/user-liyilong/ubuntu
+      # tag: 05061356-8213
     resources:
       limits:
         cpu: 200m
@@ -40,6 +42,7 @@ controllerManager:
   container:
     image:
       repository: docker.io/liyiloong/lxcfs-webhook
+      # repository: crater-harbor.act.buaa.edu.cn/crater/lxcfs-webhook
       tag: v0.1
     args:
       - "--leader-elect"

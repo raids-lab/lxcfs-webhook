@@ -170,6 +170,23 @@ spec:
             - name: start-script
               mountPath: /start.sh
               subPath: start.sh
+      initContainers:
+        - command:
+            - /bin/bash
+            - -c
+            - nsenter -m/proc/1/ns/mnt fusermount -u /var/lib/lxc/lxcfs 2> /dev/null ||
+              true
+          image: gpu-harbor.act.buaa.edu.cn/user-liyilong/ubuntu:05061356-8213
+          imagePullPolicy: IfNotPresent
+          name: cleanup-lxcfs-mount
+          resources: {}
+          securityContext:
+            privileged: true
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /var/lib/lxc
+              name: lxc-folder
       volumes:
         - name: cgroup
           hostPath:
@@ -184,6 +201,10 @@ spec:
           hostPath:
             path: /var/lib/lxc/lxcfs
             type: DirectoryOrCreate
+        - hostPath:
+            path: /var/lib/lxc
+            type: DirectoryOrCreate
+          name: lxc-folder
         - name: datalog
           hostPath:
             path: /tmp/lxcfs
