@@ -2,8 +2,8 @@
 lxcfs:
   daemonSet:
     image:
-      repository: docker.io/liyiloong/lxcfs
-      tag: v6.0.4-ubuntu22.04
+      repository: ghcr.io/raids-lab/lxcfs
+      tag: v6.0.5-ubuntu22.04
       # repository: gpu-harbor.act.buaa.edu.cn/user-liyilong/ubuntu
       # tag: 05061356-8213
     resources:
@@ -41,7 +41,7 @@ controllerManager:
   replicas: 1
   container:
     image:
-      repository: docker.io/liyiloong/lxcfs-webhook
+      repository: ghcr.io/raids-lab/lxcfs-webhook
       # repository: crater-harbor.act.buaa.edu.cn/crater/lxcfs-webhook
       tag: v0.1
     args:

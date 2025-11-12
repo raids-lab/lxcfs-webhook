@@ -1,0 +1,130 @@
+# Copyright 2025 RAIDS Lab
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Images Build
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - "v*.*.*"
+    paths:
+      - "Dockerfile"
+      - "cmd/**"
+      - "internal/**"
+      - "lxcfs/Dockerfile.lxcfs"
+      - ".github/workflows/images-build.yml"
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  ORG: raids-lab
+
+jobs:
+  build-and-push-webhook:
+    name: Build and push lxcfs-webhook
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker meta (webhook)
+        id: meta_webhook
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ env.REGISTRY }}/${{ env.ORG }}/lxcfs-webhook
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha
+
+      - name: Build and push (lxcfs-webhook)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta_webhook.outputs.tags }}
+          labels: ${{ steps.meta_webhook.outputs.labels }}
+
+  build-and-push-lxcfs:
+    name: Build and push lxcfs (daemonset)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker meta (lxcfs)
+        id: meta_lxcfs
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ env.REGISTRY }}/${{ env.ORG }}/lxcfs
+          tags: |
+            # Standard CI tags
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha
+            # Provide a stable tag that matches values.yaml (update when LXCFS_VERSION changes)
+            type=raw,value=v6.0.5-ubuntu22.04
+
+      - name: Build and push (lxcfs)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./lxcfs
+          file: ./lxcfs/Dockerfile.lxcfs
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta_lxcfs.outputs.tags }}
+          labels: ${{ steps.meta_lxcfs.outputs.labels }}
